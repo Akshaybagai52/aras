@@ -1,0 +1,32 @@
+id: rescue-workflow
+namespace: aras.rescue
+
+inputs:
+  - id: alertId
+    type: STRING
+  - id: animalType
+    type: STRING
+  - id: injuryLocation
+    type: STRING
+  - id: severity
+    type: INT
+  - id: ngoEmail
+    type: STRING
+  - id: imageUrl
+    type: STRING
+  - id: latitude
+    type: STRING
+  - id: longitude
+    type: STRING
+
+tasks:
+  - id: logAlert
+    type: io.kestra.plugin.core.log.Log
+    message: |
+      Animal Rescue Alert:
+      Type: {{inputs.animalType}}
+      Injury: {{inputs.injuryLocation}}
+      Severity: {{inputs.severity}}
+      Location: {{inputs.latitude}}, {{inputs.longitude}}
+      NGO: {{inputs.ngoEmail}}
+      Image: {{inputs.imageUrl}}

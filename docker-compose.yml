@@ -1,0 +1,30 @@
+services:
+  kestra:
+    image: kestra/kestra:latest
+    command: server standalone
+    ports:
+      - "8080:8080"
+    volumes:
+      - kestra-data:/app/storage
+    restart: unless-stopped
+    environment:
+      MICRONAUT_SECURITY_ENABLED: "false"
+      KESTRA_CONFIGURATION: |
+        kestra:
+          server:
+            basic-auth:
+              enabled: false
+          repository:
+            type: h2
+          storage:
+            type: local
+            local:
+              base-path: /app/storage
+          queue:
+            type: h2
+          tasks:
+            tmp-dir:
+              path: /tmp/kestra-wd/tmp
+
+volumes:
+  kestra-data:
