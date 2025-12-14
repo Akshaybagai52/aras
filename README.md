@@ -1,144 +1,164 @@
-# A.R.A.S — Animal Rescue Alert System 🐾
+# A.R.A.S — Animal Rescue Alert System
 
-A Next.js + AI + Kestra workflow system that detects injured animals from uploaded photos, identifies injury severity, uses GPS location, and automatically notifies the nearest NGO.
+A.R.A.S is a full‑stack rescue reporting web app that helps people report injured animals fast. Users upload a photo + location; the app runs AI image analysis, matches the nearest NGO within a service radius, creates an alert, and (optionally) triggers an automated workflow to notify rescuers.
+
+**Live pages**
+- Home: `/`
+- Report (upload): `/upload`
+- Alert details: `/alert/[id]`
+
+**Screenshots (add before submission)**
+- `docs/screenshots/home.png`
+- `docs/screenshots/upload.png`
+- `docs/screenshots/alert.png`
 
 ## Features
 
-- 📸 Image upload with AI-powered animal injury detection (OpenAI Vision API)
-- 📍 GPS location capture to find nearest rescue NGO
-- 🗺️ Interactive map visualization using Leaflet
-- 🔔 Automated workflow execution via Kestra
-- 📧 Email notifications to NGOs via Resend
-- 💾 PostgreSQL database via Supabase
+- Image-based reporting (camera/gallery)
+- AI analysis (animal type, injury location, severity 1–5, brief description)
+- Location capture and nearest-NGO matching (Haversine distance + service radius)
+- Alert details view: zoomable image, status progression, map with quick actions
+- Optional automation with Kestra (email notifications + scheduled summaries)
 
 ## Tech Stack
 
-- **Frontend**: Next.js 15 (App Router), React Server Components, Tailwind CSS, Shadcn UI
-- **Backend**: Next.js Server Actions & API Routes, Axios
-- **AI**: OpenAI Vision API (GPT-4o)
-- **Database**: Supabase (PostgreSQL + Storage)
-- **Workflow**: Kestra
-- **Email**: Resend
-- **Maps**: Leaflet.js (OpenStreetMap)
-- **Deployment**: Vercel
+- **Web**: Next.js 16 (App Router), React 19, TypeScript
+- **UI**: Tailwind CSS, shadcn/ui
+- **DB + Storage**: Supabase (Postgres + Storage bucket)
+- **Maps**: Leaflet + OpenStreetMap
+- **AI**: Perplexity API (OpenAI-compatible chat endpoint w/ vision content)
+- **Automation (optional)**: Kestra
+- **Email (optional)**: Resend (used from Kestra workflow)
 
-## Prerequisites
+## How it Works (Architecture)
+
+1. User uploads an image and shares location on `/upload`.
+2. `POST /api/upload-image`:
+   - Uploads the file to Supabase Storage (`animal-images`) and gets a public URL.
+   - Sends base64 image to AI (`lib/ai.ts`) and parses a JSON response.
+   - Finds the nearest NGO within radius (`lib/geo.ts` + NGO coordinates).
+   - Inserts a new row in `alerts`.
+   - Triggers a Kestra workflow (optional) to email the assigned NGO.
+3. The user is redirected to `/alert/[id]` to track details, map, and progress.
+
+## Getting Started (Local)
+
+### Prerequisites
 
 - Node.js 18+ and npm
-- Supabase account (free tier)
-- OpenAI API key
-- Kestra instance (self-hosted or cloud)
-- Resend account (free tier)
+- A Supabase project (free tier works)
+- A Perplexity API key (for AI image analysis)
+- (Optional) Kestra instance (local Docker or cloud)
+- (Optional) Resend API key (for email sending via Kestra)
 
-## Database Setup
+### 1) Install dependencies
 
-1. Create a new Supabase project
-2. Run the following SQL to create tables:
-
-```sql
--- Create NGOs table
-CREATE TABLE ngos (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  email TEXT NOT NULL,
-  latitude FLOAT8 NOT NULL,
-  longitude FLOAT8 NOT NULL,
-  radius_km INT NOT NULL,
-  created_at TIMESTAMP DEFAULT now()
-);
-
--- Create alerts table
-CREATE TABLE alerts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  image_url TEXT NOT NULL,
-  animal_type TEXT NOT NULL,
-  injury_location TEXT NOT NULL,
-  severity INT NOT NULL CHECK (severity >= 1 AND severity <= 5),
-  latitude FLOAT8 NOT NULL,
-  longitude FLOAT8 NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('pending','notified','in_progress','resolved')),
-  nearest_ngo_id UUID REFERENCES ngos(id),
-  kestra_execution_id TEXT,
-  created_at TIMESTAMP DEFAULT now()
-);
-
--- Create storage bucket for images
-INSERT INTO storage.buckets (id, name, public) VALUES ('animal-images', 'animal-images', true);
-
--- Set storage policy (allow public read, authenticated write)
-CREATE POLICY "Public read access" ON storage.objects FOR SELECT USING (bucket_id = 'animal-images');
-CREATE POLICY "Authenticated write access" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'animal-images');
-```
-
-3. Seed NGO data:
-
-```bash
-npm install tsx
-npx tsx scripts/seed-ngos.ts
-```
-
-## Installation
-
-1. Clone the repository
-2. Install dependencies:
-
-```bash
+```powershell
 npm install
 ```
 
-3. Copy `.env.example` to `.env.local` and fill in your API keys:
+### 2) Configure environment
 
-```bash
-cp .env.example .env.local
+Create `.env.local` in the repo root:
+
+```dotenv
+# Supabase (required)
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+
+# AI (required for analysis)
+PERPLEXITY_API_KEY=
+
+# App URL (required for some server-to-server calls)
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# Kestra (optional, only if you want workflow triggers)
+KESTRA_URL=http://localhost:8080
+KESTRA_USERNAME=
+KESTRA_PASSWORD=
 ```
 
-4. Configure Kestra workflow:
-   - Upload `kestra/workflow.yml` to your Kestra instance
-   - Set the `RESEND_API_KEY` as a Kestra secret
+### 3) Supabase database + storage
 
-## Development
+1. Create a Supabase project.
+2. In Supabase SQL editor, run `schema.sql`.
+3. Confirm:
+   - tables: `ngos`, `alerts`
+   - storage bucket: `animal-images`
 
-```bash
+### 4) Seed sample NGOs
+
+```powershell
+npm run seed
+```
+
+### 5) Run the dev server
+
+```powershell
 npm run dev
 ```
 
-Open [http://localhost:3000/upload](http://localhost:3000/upload) to start reporting animal rescues.
+Open `http://localhost:3000`.
 
-## Project Structure
+## API
 
+See `API.md` for full details.
+
+Common endpoints:
+- `POST /api/upload-image` — uploads image + runs AI + creates alert + triggers workflow
+- `POST /api/trigger-kestra` — manually triggers Kestra workflow for an alert
+- `GET /api/alerts` — returns alerts (demo endpoint)
+- `GET /api/stats` — returns basic stats (demo endpoint)
+
+## Kestra (Optional)
+
+### Run Kestra locally
+
+```powershell
+docker compose up -d
 ```
-/app
-  /upload          # Main upload page
-  /alert/[id]      # Alert details page
-  /api             # API routes for image upload and Kestra trigger
 
-/components        # React components (ImageUploader, MapView, etc.)
-/lib               # Utility functions (AI, geo, database)
-/types             # TypeScript type definitions
-/scripts           # Database seeding scripts
-/kestra            # Kestra workflow definition
-```
+Kestra UI: `http://localhost:8080`
 
-## Usage
+### Rescue notification workflow
 
-1. Navigate to `/upload`
-2. Allow location access
-3. Take or upload a photo of an injured animal
-4. Submit the alert
-5. AI analyzes the image and determines injury details
-6. System finds the nearest NGO
-7. Kestra workflow sends email notification to NGO
-8. View alert details with map on `/alert/[id]`
+- Flow: `kestra/workflow.yml`
+- Namespace: `aras.rescue`
+- Flow ID: `rescue-workflow`
+
+In Kestra, set the Resend SMTP password as a secret/value (see `kestra/workflow.yml`).
+
+### Scheduled summary workflow (example)
+
+- Flow: `daily-ai-summary.yml`
+- Uses a cron trigger (currently configured for every 5 minutes)
+- Uses Perplexity API via HTTP request and emails the result
 
 ## Deployment
 
-Deploy to Vercel:
+Recommended: Vercel + Supabase.
 
-```bash
-vercel deploy
-```
+1. Deploy to Vercel.
+2. Add the same env vars from `.env.local` in Vercel project settings.
+3. Update `NEXT_PUBLIC_SITE_URL` to your Vercel URL.
+4. Ensure Supabase Storage bucket policies allow reads for the alert images.
 
-Make sure to add all environment variables in Vercel project settings.
+## Troubleshooting
+
+- **Build fails with `supabaseUrl is required`**
+  - Ensure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are set in the environment used by `next build`.
+- **No NGO found within service radius**
+  - Run `npm run seed` and ensure your test location is within a seeded NGO’s `radius_km`.
+- **AI analysis fails**
+  - Check `PERPLEXITY_API_KEY` and Perplexity quotas; the app falls back to a default response if the AI call fails.
+- **Kestra trigger fails**
+  - Verify `KESTRA_URL`, `KESTRA_USERNAME`, `KESTRA_PASSWORD` and that `rescue-workflow` exists in namespace `aras.rescue`.
+
+## Security Notes
+
+- Do not commit `.env.local`.
+- The demo `GET /api/alerts` and `GET /api/stats` endpoints are unauthenticated; for production, add auth + Supabase RLS.
+- Use least-privilege keys; never expose Supabase service role keys in the browser.
 
 ## License
 
