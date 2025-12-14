@@ -1,40 +1,53 @@
 id: daily-ai-summary
 namespace: aras.rescue
 
-schedule:
-  cron: "0 7 * * *" # Every day at 7 AM
+triggers:
+  - id: schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "*/5 * * * *" # Every 5 minutes
 
 tasks:
   - id: fetchAlerts
-    type: io.kestra.plugin.fs.http.Request
-    uri: "https://YOUR_VERCEL_URL/api/alerts"
+    type: io.kestra.plugin.core.http.Request
+    uri: "https://aras-ten.vercel.app/api/alerts"
     method: GET
-    responseType: STRING
 
   - id: summarizeAlerts
-    type: ai.agent
-    prompt: |
-      You are an assistant analyzing animal rescue data.
-      Here are today's rescue alerts:
-      {{ task.fetchAlerts.body }}
-
-      Generate a clean human-readable report covering:
-      - Total number of rescue alerts
-      - Severity distribution
-      - Most common animal types
-      - Any severity-5 (critical) hotspots
-      - Insights for NGOs
-      - Recommendations for improving rescue response
+    type: io.kestra.plugin.core.http.Request
+    uri: "https://api.perplexity.ai/chat/completions"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ secret('PERPLEXITY_API_KEY') }}"
+      Content-Type: "application/json"
+    contentType: application/json
+    body: |
+      {{ {
+        "model": "llama-3.1-sonar-small-128k-online",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are an assistant analyzing animal rescue data. Return ONLY HTML with inline CSS suitable for email clients. Do not return Markdown. Do not wrap output in code fences."
+          },
+          {
+            "role": "user",
+            "content": "Here are today's rescue alerts (JSON):\n" ~ outputs.fetchAlerts.body ~ "\n\nCreate a clean HTML report for email with these sections:\n1) Summary (total alerts, date range if available)\n2) Severity distribution (include a simple HTML <table>)\n3) Most common animal types\n4) Severity-5 (critical) hotspots (if any)\n5) Insights for NGOs\n6) Recommendations\n\nRequirements:\n- Output must be a SINGLE HTML fragment (start with <div> and end with </div>)\n- Use only inline styles (no <style> tag)\n- Keep it readable in email clients (tables with border-collapse, basic fonts)"
+          }
+        ]
+      } | toJson }}
 
   - id: sendSummaryEmail
     type: io.kestra.plugin.notifications.mail.MailSend
     from: onboarding@resend.dev
-    to: "YOUR_EMAIL_HERE"
+    to: "akshaybagai52@gmail.com"
     subject: "A.R.A.S Daily Rescue Summary"
     htmlTextContent: |
       <html>
-        <body>
-          <h2>🐾 A.R.A.S — Daily AI Summary Report</h2>
-          <p>{{task.summarizeAlerts.answer}}</p>
+        <body style="margin:0;padding:0;font-family:Arial, sans-serif;background:#f9fafb;">
+          <div style="max-width:680px;margin:0 auto;padding:20px;">
+            <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;padding:20px;">
+              <h2 style="margin:0 0 16px 0;">🐾 A.R.A.S — Daily AI Summary Report</h2>
+              {{ json(outputs.summarizeAlerts.body).choices[0].message.content }}
+            </div>
+          </div>
         </body>
       </html>
