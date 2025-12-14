@@ -3,15 +3,14 @@
 A.R.A.S is a full‑stack rescue reporting web app that helps people report injured animals fast. Users upload a photo + location; the app runs AI image analysis, matches the nearest NGO within a service radius, creates an alert, and (optionally) triggers an automated workflow to notify rescuers.
 
 **Live pages**
-- Home: `/`
-- Report (upload): `/upload`
-- Alert details: `/alert/[id]`
 
-**Screenshots (add before submission)**
+- Home: `/`
 - <img width="1897" height="766" alt="image" src="https://github.com/user-attachments/assets/055f4404-8217-4704-8682-403bd625bcb3" />
 
+- Report (upload): `/upload`
 - <img width="1919" height="795" alt="image" src="https://github.com/user-attachments/assets/76de5e32-238f-47ca-ac09-3c13a45fd36c" />
 
+- Alert details: `/alert/[id]`
 - <img width="1630" height="813" alt="image" src="https://github.com/user-attachments/assets/2504a1ff-3c1e-4772-946c-a130a639bff0" />
 
 
