@@ -8,9 +8,12 @@ A.R.A.S is a full‑stack rescue reporting web app that helps people report inju
 - Alert details: `/alert/[id]`
 
 **Screenshots (add before submission)**
-- `docs/screenshots/home.png`
-- `docs/screenshots/upload.png`
-- `docs/screenshots/alert.png`
+- <img width="1897" height="766" alt="image" src="https://github.com/user-attachments/assets/055f4404-8217-4704-8682-403bd625bcb3" />
+
+- <img width="1919" height="795" alt="image" src="https://github.com/user-attachments/assets/76de5e32-238f-47ca-ac09-3c13a45fd36c" />
+
+- <img width="1630" height="813" alt="image" src="https://github.com/user-attachments/assets/2504a1ff-3c1e-4772-946c-a130a639bff0" />
+
 
 ## Features
 
