@@ -1,0 +1,40 @@
+id: daily-ai-summary
+namespace: aras.rescue
+
+schedule:
+  cron: "0 7 * * *" # Every day at 7 AM
+
+tasks:
+  - id: fetchAlerts
+    type: io.kestra.plugin.fs.http.Request
+    uri: "https://YOUR_VERCEL_URL/api/alerts"
+    method: GET
+    responseType: STRING
+
+  - id: summarizeAlerts
+    type: ai.agent
+    prompt: |
+      You are an assistant analyzing animal rescue data.
+      Here are today's rescue alerts:
+      {{ task.fetchAlerts.body }}
+
+      Generate a clean human-readable report covering:
+      - Total number of rescue alerts
+      - Severity distribution
+      - Most common animal types
+      - Any severity-5 (critical) hotspots
+      - Insights for NGOs
+      - Recommendations for improving rescue response
+
+  - id: sendSummaryEmail
+    type: io.kestra.plugin.notifications.mail.MailSend
+    from: onboarding@resend.dev
+    to: "YOUR_EMAIL_HERE"
+    subject: "A.R.A.S Daily Rescue Summary"
+    htmlTextContent: |
+      <html>
+        <body>
+          <h2>🐾 A.R.A.S — Daily AI Summary Report</h2>
+          <p>{{task.summarizeAlerts.answer}}</p>
+        </body>
+      </html>

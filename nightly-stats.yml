@@ -1,0 +1,16 @@
+id: nightly-stats
+namespace: aras.rescue
+
+schedule:
+  cron: "0 0 * * *"
+
+tasks:
+  - id: fetchStats
+    type: io.kestra.plugin.fs.http.Request
+    uri: "https://YOUR_VERCEL_URL/api/stats"
+    method: GET
+    responseType: STRING
+
+  - id: logStats
+    type: io.kestra.plugin.core.log.Log
+    message: "Nightly stats: {{task.fetchStats.body}}"

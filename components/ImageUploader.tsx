@@ -8,23 +8,39 @@ import Image from 'next/image';
 interface ImageUploaderProps {
   onImageSelect: (file: File) => void;
   selectedImage: File | null;
+  errorMessage?: string | null;
+  onError?: (message: string | null) => void;
 }
 
-export default function ImageUploader({ onImageSelect, selectedImage }: ImageUploaderProps) {
+export default function ImageUploader({
+  onImageSelect,
+  selectedImage,
+  errorMessage,
+  onError,
+}: ImageUploaderProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      onError?.('Unsupported file type. Please upload an image.');
+      return;
+    }
+
+    onError?.(null);
+    onImageSelect(file);
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      onImageSelect(file);
-      
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      handleFile(file);
     }
   };
 
@@ -35,10 +51,10 @@ export default function ImageUploader({ onImageSelect, selectedImage }: ImageUpl
   return (
     <Card className="p-6">
       <div className="space-y-4">
-        <div className="text-center">
-          <h3 className="text-lg font-semibold mb-2">Upload Animal Photo</h3>
+        <div className="space-y-1">
+          <h3 className="text-lg font-semibold">Upload Animal Image</h3>
           <p className="text-sm text-muted-foreground">
-            Take or upload a photo of the injured animal
+            Upload or take a photo of the injured animal.
           </p>
         </div>
 
@@ -52,23 +68,29 @@ export default function ImageUploader({ onImageSelect, selectedImage }: ImageUpl
             />
           </div>
         ) : (
-          <div className="border-2 border-dashed border-muted rounded-lg p-12 text-center">
-            <svg
-              className="mx-auto h-12 w-12 text-muted-foreground"
-              stroke="currentColor"
-              fill="none"
-              viewBox="0 0 48 48"
-              aria-hidden="true"
-            >
-              <path
-                d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <p className="mt-2 text-sm text-muted-foreground">
-              No image selected
+          <div
+            className="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-muted-foreground/40 bg-muted/40 px-6 py-10 text-center cursor-pointer"
+            onClick={handleClick}
+            onDragOver={(e) => {
+              e.preventDefault();
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const file = e.dataTransfer.files?.[0];
+              if (file) {
+                handleFile(file);
+              }
+            }}
+          >
+            <div className="flex items-center gap-3 text-3xl">
+              <span aria-hidden="true">📷</span>
+              <span aria-hidden="true">🖼️</span>
+            </div>
+            <p className="text-sm font-medium text-foreground">
+              Upload or take a photo of the injured animal
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Drag & drop an image here, or tap to browse
             </p>
           </div>
         )}
@@ -82,9 +104,14 @@ export default function ImageUploader({ onImageSelect, selectedImage }: ImageUpl
           capture="environment"
         />
 
-        <Button onClick={handleClick} className="w-full" variant="outline">
-          {preview ? 'Change Photo' : 'Select Photo'}
-        </Button>
+        <div className="space-y-2">
+          <Button onClick={handleClick} className="w-full" size="lg">
+            {preview ? 'Change Photo' : 'Upload Photo'}
+          </Button>
+          {errorMessage && (
+            <p className="text-xs text-destructive text-center">{errorMessage}</p>
+          )}
+        </div>
       </div>
     </Card>
   );
